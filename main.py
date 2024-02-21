@@ -6,9 +6,9 @@ from questionary import Choice, select
 from tabulate import tabulate
 
 from config import ACCOUNTS, PROXIES, WITHDRAW_ADDRESSES
-from utils import wait_for_new_ip, sleep
-from modules import *
+from core import *
 from settings import *
+from modules_settings import *
 
 
 async def checker(zetachains: list[Zetachain]) -> None:
@@ -37,51 +37,27 @@ def select_zetachains(zetachains: list[Zetachain]) -> list[Zetachain]:
         raise ValueError('Некорректный выбор аккаунтов!')
 
 async def get_module() -> str:
-    result = await select(
+    return await select(
         message="Выберите модуль для работы: ",
         instruction='(используйте стрелочки для навигации)',
         choices=[
             Choice("🧠 Автоматический Маршрут", 'work'),
             Choice("🧠 Кастомный маршрут", 'custom_way'),
-            Choice("📝 Регистрация", 'enroll'),
-            Choice("💸 Перевод", 'transfer'),
-            Choice("🔄 Свап ZETA/BNB.BSC", 'izumi_swap-ZETA/BNB.BSC'),
-            Choice("🔄 Свап ZETA/ETH.ETH", 'izumi_swap-ZETA/ETH.ETH'),
-            Choice("🔄 Свап ZETA/BTC.BTC", 'izumi_swap-ZETA/BTC.BTC'),
-            Choice("➕ Добавить ZETA/BNB.BSC ликвидность", 'add_liquidity'),
+            Choice("💲 Вывод с ОКХ", "okx_withdraw"),
+            Choice("📝 Регистрация по рефке", 'enroll'),
+            Choice("💸 Перевод самому себе", 'transfer'),
+            Choice("🔄 Свап на iZUMi", 'izumi_swap'),
+            Choice("➕ Добавить ликвидность", 'add_liquidity'),
             Choice("🎁 Клейм поинтов", 'claim'),
-            Choice("💰 Вывод", 'withdraw'),
+            Choice("💰 Депозит на адрес для вывода", 'withdraw'),
             Choice("📊 Чекер", 'checker'),
+            Choice("💹 Проверить баланс ОКХ", 'okx_balance'),
             Choice("🔙 Вернуться к выбору аккаунтов", 'back'),
             Choice("❌ Выход", "exit"),
         ],
         qmark="\n❓ ",
         pointer="👉 "
     ).ask_async()
-    return result
-
-async def run_module(module: str, zetachain: Zetachain) -> None:
-    if module == 'work':
-        enroll = await zetachain.enroll()
-        if enroll: await sleep(20, 25) 
-        await zetachain.transfer()
-        swaps = ['ZETA/BNB.BSC', 'ZETA/ETH.ETH', 'ZETA/BTC.BTC']
-        random.shuffle(swaps)
-        [await zetachain.izumi_swap(swap) for swap in swaps]
-        liquidity = await zetachain.add_liquidity()
-        if liquidity: await sleep(25, 30)
-        await zetachain.claim()
-    elif 'izumi_swap' in module:
-        way = module.split('-')[1]
-        await zetachain.izumi_swap(way)
-    elif 'custom_way' in module:
-        for action in CUSTOM_WAY:
-            if 'izumi_swap' in action: await zetachain.izumi_swap(action.split('-')[1])
-            else: result = await getattr(zetachain, action)()
-            if action in ['enroll', 'add_liquidity'] and result: await sleep(25, 30)
-    else:
-        await getattr(zetachain, module)()
-
 
 async def main(zetachains: list[Zetachain]) -> None:
     module = await get_module()
@@ -92,11 +68,16 @@ async def main(zetachains: list[Zetachain]) -> None:
         return
     elif module == 'back':
         return True
+    elif module == 'okx_balance':
+        return
     for zetachain in zetachains:
-        await run_module(module, zetachain)
+        if module in ['work', 'custom_way', 'okx_withdraw']:
+            await globals()[module](zetachain)
+        else:
+            await run_solo_module(module, zetachain)
         if zetachain != zetachains[-1] and not zetachain.acc.proxy:
             await wait_for_new_ip()
-        
+
 
 if __name__ == '__main__':
     logger.remove()
@@ -112,6 +93,7 @@ if __name__ == '__main__':
         random.shuffle(accs)
         logger.warning('Аккаунты перемешаны')
     logger.warning('Используются прокси') if USE_PROXY else logger.warning('Прокси не используются')
+    if DO_ACTION_ANYWAY: logger.warning('Действия выполняются в любом случае')
 
     ZETACHAINS = [Zetachain(acc) for acc in accs]    
     loop = asyncio.get_event_loop()
@@ -120,11 +102,14 @@ if __name__ == '__main__':
 
     while True:
         try:
+            okx_balance = loop.run_until_complete(OKX('').get_okx_ccy_balance('ZETA'))
+            logger.info(f'ОКХ баланс: {okx_balance:.4f} $ZETA')
             result = loop.run_until_complete(main(zetachains))
             if result:
+                loop.run_until_complete(checker(ZETACHAINS))
                 zetachains = select_zetachains(ZETACHAINS)
         except KeyboardInterrupt:
-           break
+            break
         except Exception as e:
            logger.critical(e)
            break
