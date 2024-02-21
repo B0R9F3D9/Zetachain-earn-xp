@@ -110,7 +110,7 @@ class OKX:
         while True:
             status = await self.get_deposit_status(token_symbol, tx_hash)
             if status == None: logger.info(f'{self.info} Депозит пока не найден')
-            elif status == True and status != 1: logger.success(f'{self.info} Депозит получен!'); return True
+            elif status == True and not isinstance(status, int): logger.success(f'{self.info} Депозит получен!'); return True
             elif isinstance(status, int): logger.info(f'{self.info} Ожидание подтверждений - {status}/{need_confirms}')
             else: logger.error(f'{self.info} Депозит отклонён!'); return False
             await asyncio.sleep(10)
