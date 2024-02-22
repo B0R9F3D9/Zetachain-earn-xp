@@ -8,7 +8,7 @@ from tabulate import tabulate
 from config import ACCOUNTS, PROXIES, WITHDRAW_ADDRESSES
 from core import *
 from settings import *
-from modules_settings import *
+from functions import *
 
 
 async def checker(zetachains: list[Zetachain]) -> None:
@@ -47,8 +47,9 @@ async def get_module() -> str:
             Choice("📝 Регистрация по рефке", 'enroll'),
             Choice("💸 Перевод самому себе", 'transfer'),
             Choice("🔄 Свап на iZUMi", 'izumi_swap'),
-            Choice("➕ Добавить ликвидность", 'add_liquidity'),
+            Choice("➕ Добавить ликвидность на iZUMi", 'izumi_liquidity'),
             Choice("🎁 Клейм поинтов", 'claim'),
+            Choice("🌹 Минт $stZETA", "mint_stzeta"),
             Choice("💰 Депозит на адрес для вывода", 'withdraw'),
             Choice("📊 Чекер", 'checker'),
             Choice("💹 Проверить баланс ОКХ", 'okx_balance'),
@@ -69,6 +70,7 @@ async def main(zetachains: list[Zetachain]) -> None:
     elif module == 'back':
         return True
     elif module == 'okx_balance':
+        await get_okx_balance()
         return
     for zetachain in zetachains:
         if module in ['work', 'custom_way', 'okx_withdraw']:
@@ -97,13 +99,12 @@ if __name__ == '__main__':
 
     ZETACHAINS = [Zetachain(acc) for acc in accs]    
     loop = asyncio.get_event_loop()
+    loop.run_until_complete(get_okx_balance()) if USE_OKX else logger.warning('OKX не используется')
     loop.run_until_complete(checker(ZETACHAINS))
     zetachains = select_zetachains(ZETACHAINS)
 
     while True:
         try:
-            okx_balance = loop.run_until_complete(OKX('').get_okx_ccy_balance('ZETA'))
-            logger.info(f'ОКХ баланс: {okx_balance:.4f} $ZETA')
             result = loop.run_until_complete(main(zetachains))
             if result:
                 loop.run_until_complete(checker(ZETACHAINS))
