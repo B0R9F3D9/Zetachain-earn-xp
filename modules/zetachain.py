@@ -22,6 +22,7 @@ class Zetachain:
         self.izumi_quoter_contract: AsyncContract = self.acc.get_contract(CONTRACTS['izumi_quoter'], IZUMI_QUOTER_ABI)
         self.izumi_router_contract: AsyncContract = self.acc.get_contract(CONTRACTS['izumi_router'], IZUMI_ROUTER_ABI)
         self.zetahub_contract: AsyncContract = self.acc.get_contract(CONTRACTS['zetahub'], ZETAHUB_ABI)
+        self.stzeta_contract: AsyncContract = self.acc.get_contract(CONTRACTS['stzeta'], STZETA_ABI)
         self.headers = {
             'accept': 'application/json, text/plain, */*',
             'origin': 'https://hub.zetachain.com',
@@ -41,6 +42,7 @@ class Zetachain:
                 data = (await resp.json())['xpRefreshTrackingByTask'][task_name]
         return data['hasAlreadyEarned'] is False and data['hasXpToRefresh'] is False
     
+    @retry
     async def check_enroll(self) -> bool:
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.post(f"https://xp.cl04.zetachain.com/v1/enroll-in-zeta-xp", json={'address': self.acc.address}, proxy=self.acc.proxy) as resp:
@@ -86,7 +88,7 @@ class Zetachain:
                 return
         fee = {'ZETA/BNB.BSC': 10000, 'ZETA/ETH.ETH': 3000, 'ZETA/BTC.BTC': 10000}[pair]
         amount = random.uniform(*SWAP_AMOUNT)
-        logger.info(f'{self.acc.info} Делаю свап {amount:.5f} {pair}')
+        logger.info(f'{self.acc.info} Делаю свап на iZUMi {amount:.5f} {pair}')
 
         from_token_bytes = HexBytes(SWAP_TOKENS[pair.split('/')[0]]).rjust(20, b'\0')
         to_token_bytes = HexBytes(SWAP_TOKENS[pair.split('/')[1]]).rjust(20, b'\0')
@@ -108,7 +110,7 @@ class Zetachain:
         await self.acc.send_txn(txn)
 
     @retry
-    async def add_liquidity(self, pair: str) -> None:
+    async def izumi_liquidity(self, pair: str) -> None:
         if not DO_ACTION_ANYWAY:
             if not await self.check_complete('POOL_DEPOSIT_ANY_POOL'):
                 logger.info(f'{self.acc.info} Кошелёк уже добавлял ликвидность ✅')
@@ -121,7 +123,7 @@ class Zetachain:
         approve_amount = int(random.uniform(0.1, 111) * 10**18) # или amount_wei, но удобнее аппрув на дохуя 
         await self.acc.approve(approve_amount, USUAL_TOKENS[token_to], CONTRACTS['zetahub'])
 
-        logger.info(f'{self.acc.info} Добавляю {amount_wei/10**18:.7f} {token_to} + {zeta_amount_wei/10**18:.7f} ZETA в ликвидность...')
+        logger.info(f'{self.acc.info} Добавляю {amount_wei/10**18:.7f} {token_to} + {zeta_amount_wei/10**18:.7f} ZETA в iZUMi ликвидность...')
         txn = await self.zetahub_contract.functions.addLiquidityETH(
             USUAL_TOKENS[token_to],
             amount_wei,
@@ -131,6 +133,22 @@ class Zetachain:
         ).build_transaction(await self.acc.get_tx_data(zeta_amount_wei))
         await self.acc.send_txn(txn)
         return True
+
+    @retry
+    async def mint_stzeta(self) -> None:
+        if not DO_ACTION_ANYWAY:
+            if not await self.check_complete('ACCUMULATED_FINANCE_DEPOSIT'):
+                logger.info(f'{self.acc.info} Кошелёк уже делал минт $stZETA ✅')
+                return False
+        
+        amount = random.uniform(*STZETA_MINT_AMOUNT)
+        amount_wei = int(amount * 10**18)
+        logger.info(f'{self.acc.info} Делаю минт {amount:.5f} $stZETA')
+
+        txn = await self.stzeta_contract.functions.deposit(
+            self.acc.address
+        ).build_transaction(await self.acc.get_tx_data(amount_wei))
+        await self.acc.send_txn(txn)
 
     @retry
     async def sign_message(self) -> str:
@@ -182,7 +200,6 @@ class Zetachain:
 
     @retry
     async def withdraw(self) -> None:
-        okx_balance = await OKX('').get_okx_ccy_balance('ZETA')
         balance = (await self.acc.get_balance("ZETA"))["balance"]
         amount = balance - random.uniform(*AMOUNT_TO_SAVE)
         if not self.acc.withdraw_address:
