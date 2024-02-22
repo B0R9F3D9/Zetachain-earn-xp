@@ -21,6 +21,10 @@ with open('data/abi/izumi_router.json', 'r') as file:
 with open('data/abi/zetahub.json', 'r') as file:
     ZETAHUB_ABI = json.load(file)
 
+with open('data/abi/stzeta.json', 'r') as file:
+    STZETA_ABI = json.load(file)
+
+
 USUAL_TOKENS = {
     'ZETA': '0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf',
     'wZETA': '0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf',
@@ -41,6 +45,7 @@ CONTRACTS = {
     'izumi_quoter': '0x8Afb66B7ffA1936ec5914c7089D50542520208b8',
     'izumi_router': '0x34bc1b87f60e0a30c0e24FD7Abada70436c71406',
     'zetahub': '0x2ca7d64A7EFE2D62A725E2B35Cf7230D6677FfEe',
+    'stzeta': '0xcf1A40eFf1A4d4c56DC4042A1aE93013d13C3217',
 }
 
 TASKS_NAMES = {
@@ -51,4 +56,5 @@ TASKS_NAMES = {
     'RECEIVE_BTC': 'BTC',
     'RECEIVE_ETH': 'ETH',
     'POOL_DEPOSIT_ANY_POOL': 'ПУЛ',
+    'ACCUMULATED_FINANCE_DEPOSIT': 'СТЕЙК'
 }
