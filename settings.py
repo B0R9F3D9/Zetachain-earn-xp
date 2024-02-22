@@ -1,6 +1,9 @@
 # Использовать прокси
 USE_PROXY: bool = True
 
+# Использовать ОКХ для вывода на аккаунты и проверки депозита на адрес ОКХ
+USE_OKX: bool = False
+
 # Перемешать кошельки
 SHUFFLE_WALLETS: bool = False
 
@@ -21,18 +24,20 @@ CUSTOM_WAY: list[str] = [
     'izumi_swap-ZETA/BNB.BSC', # Свап ZETA/BNB.BSC
     'izumi_swap-ZETA/ETH.ETH', # Свап ZETA/ETH.ETH
     'izumi_swap-ZETA/BTC.BTC', # Свап ZETA/BTC.BTC
-    'add_liquidity-ZETA/BNB.BSC', # Добавить ликвидность ZETA/BNB.BSC
-    'add_liquidity-ZETA/ETH.ETH', # Добавить ликвидность ZETA/ETH.ETH
-    'add_liquidity-ZETA/BTC.BTC', # Добавить ликвидность ZETA/BTC.BTC
+    'izumi_liquidity-ZETA/BNB.BSC', # Добавить ликвидность ZETA/BNB.BSC
+    'izumi_liquidity-ZETA/ETH.ETH', # Добавить ликвидность ZETA/ETH.ETH
+    'izumi_liquidity-ZETA/BTC.BTC', # Добавить ликвидность ZETA/BTC.BTC
+    'mint_stzeta', # Минт $stZETA
     'claim', # Клейм поинтов
     'withdraw', # Вывод на адрес для депозита
 ]
 
 # Настройки маршрутов
-MIN_WALLET_BALANCE: float = 0.01 # Минимальный баланс кошелька в $ZETA, если баланс меньше то будет выводить с ОКХ сумму AMOUNT_TO_WITHDRAW
+MIN_WALLET_BALANCE: float = 0 # Минимальный баланс кошелька в $ZETA, если баланс меньше то будет выводить с ОКХ сумму AMOUNT_TO_WITHDRAW
 TRANSFER_AMOUNT: tuple[float, float] = (0.000001, 0.0001) # Мин, Макс сумма перевода самому себе в $ZETA
 SWAP_AMOUNT: tuple[float, float] = (0.00001, 0.001) # Мин, Макс сумма свапа в $ZETA
-AMOUNT_TO_SAVE: tuple[float, float] = (0.009, 0.015) # Мин, Макс сумма для сохранения на кошельке в $ZETA
+STZETA_MINT_AMOUNT: tuple[float, float] = (0.00001, 0.001) # Мин, Макс сумма минта $stZETA
+AMOUNT_TO_SAVE: tuple[float, float] = (0.02, 0.03) # Мин, Макс сумма для сохранения на кошельке в $ZETA
 AMOUNT_TO_WITHDRAW: tuple[float, float] = (2, 2.2) # Мин, Макс сумма для вывода с ОКХ (минимум 2 $ZETA)
 
 # Прочее
