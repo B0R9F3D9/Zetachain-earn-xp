@@ -61,7 +61,8 @@ async def okx_withdraw(zetachain: Zetachain) -> None:
     else: logger.info(f'{zetachain.acc.info} Аккаунт уже имеет более {MIN_WALLET_BALANCE} ZETA')
 
 async def get_okx_balance():
+    if not USE_OKX: logger.error(f'ОКХ не используется'); return
     okx = OKX('')
-    balance = okx.get_okx_ccy_balance('ZETA')
+    balance = await okx.get_okx_ccy_balance('ZETA')
     logger.info(f'Баланс OKX: {balance} $ZETA')
     return balance
