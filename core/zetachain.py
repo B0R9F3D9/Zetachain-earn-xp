@@ -201,6 +201,7 @@ class Zetachain:
     @retry
     async def withdraw(self) -> None:
         balance = (await self.acc.get_balance("ZETA"))["balance"]
+        if balance - AMOUNT_TO_SAVE[1] < 0: logger.error(f'{self.acc.info} Баланс меньше суммы вывода')
         amount = balance - random.uniform(*AMOUNT_TO_SAVE)
         if not self.acc.withdraw_address:
             logger.error(f'{self.acc.info} Не указан адрес для вывода!')
