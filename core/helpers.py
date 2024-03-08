@@ -11,15 +11,13 @@ async def sleep(sleep_from: int, sleep_to: int):
 
 def retry(func):
     async def wrapper(*args, **kwargs):
-        retries = 0
-        while retries <= RETRY_COUNT:
+        for i in range(1, RETRY_COUNT+1):
             try:
                 result = await func(*args, **kwargs)
                 return result
             except Exception as e:
-                logger.error(str(e))
-                await sleep(20, 30)
-                retries += 1
+                logger.error(f'({i}/{RETRY_COUNT}): {e}')
+                if i != RETRY_COUNT: await sleep(20, 30)
     return wrapper
 
 @retry
