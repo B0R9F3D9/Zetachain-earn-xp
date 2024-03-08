@@ -48,8 +48,9 @@ async def get_module() -> str:
             Choice("💸 Перевод самому себе", 'transfer'),
             Choice("🔄 Свап на iZUMi", 'izumi_swap'),
             Choice("➕ Добавить ликвидность на iZUMi", 'izumi_liquidity'),
-            Choice("🎁 Клейм поинтов", 'claim'),
+            Choice("🔄 Свап на Eddy Finance", 'eddy_swap'),
             Choice("🌹 Минт $stZETA", "mint_stzeta"),
+            Choice("🎁 Клейм поинтов", 'claim'),
             Choice("💰 Депозит на адрес для вывода", 'withdraw'),
             Choice("📊 Чекер", 'checker'),
             Choice("💹 Проверить баланс ОКХ", 'okx_balance'),
@@ -60,7 +61,7 @@ async def get_module() -> str:
         pointer="👉 "
     ).ask_async()
 
-async def main(zetachains: list[Zetachain]) -> None:
+async def main(zetachains: list[Zetachain]) -> None | bool:
     module = await get_module()
     if module == 'exit':
         raise KeyboardInterrupt
@@ -93,13 +94,16 @@ if __name__ == '__main__':
 
     if SHUFFLE_WALLETS:
         random.shuffle(accs)
-        logger.warning('Аккаунты перемешаны')
-    logger.warning('Используются прокси') if USE_PROXY else logger.warning('Прокси не используются')
-    if DO_ACTION_ANYWAY: logger.warning('Действия выполняются в любом случае')
+        for i, acc in enumerate(accs, 1): acc.account_id = i
+        logger.warning('Аккаунты перемешаны!')
+    if USE_PROXY: logger.warning('Используются прокси!')
+    else: logger.warning('Прокси не используются!')
+    if DO_ACTION_ANYWAY: logger.warning('Действия выполняются в любом случае!')
 
-    ZETACHAINS = [Zetachain(acc) for acc in accs]    
+    ZETACHAINS = [Zetachain(acc) for acc in accs]
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(get_okx_balance()) if USE_OKX else logger.warning('OKX не используется')
+    if USE_OKX: loop.run_until_complete(get_okx_balance())
+    else: logger.warning('OKX не используется!')
     loop.run_until_complete(checker(ZETACHAINS))
     zetachains = select_zetachains(ZETACHAINS)
 
