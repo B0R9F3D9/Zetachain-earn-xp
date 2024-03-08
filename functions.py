@@ -16,7 +16,8 @@ async def get_pair() -> str:
     ).ask_async()
     if result == 'Рандомная':
         return random.choice(['ZETA/BNB.BSC', 'ZETA/ETH.ETH', 'ZETA/BTC.BTC'])
-    else: return result
+    else:
+        return result
 
 async def work(zetachain: Zetachain) -> None:
     if USE_OKX: okx = OKX(zetachain.acc.info); await okx_withdraw(zetachain)
@@ -31,6 +32,7 @@ async def work(zetachain: Zetachain) -> None:
     for pair in pairs: await zetachain.izumi_swap(pair)
 
     await zetachain.izumi_liquidity(random.choice(pairs))
+    await zetachain.eddy_swap(random.choice(pairs))
     await zetachain.mint_stzeta()
 
     await sleep(30, 45)
@@ -40,28 +42,36 @@ async def work(zetachain: Zetachain) -> None:
 
 async def custom_way(zetachain: Zetachain) -> None:
     for action in CUSTOM_WAY:
-        if action == 'okx_withdraw': await okx_withdraw(zetachain); continue
-        if 'izumi_swap' in action or 'izumi_liquidity' in action: action, pair = action.split('-')
-        else: pair = None
+        if action == 'okx_withdraw':
+            await okx_withdraw(zetachain)
+            continue
+        pair = None
+        if 'swap' in action or 'liquidity' in action:
+            action, pair = action.split('-')
         result = await run_solo_module(action, zetachain, pair)
-        if ('enroll' in action or 'izumi_liquidity' in action) and result: await sleep(20, 30)
+        if result: await sleep(20, 30)
 
 async def run_solo_module(module: str, zetachain: Zetachain, pair: str | None = None) -> bool | None:
-    if 'izumi_swap' in module or 'izumi_liquidity' in module:
+    if 'swap' in module or 'liquidity' in module:
         if not pair: pair = await get_pair()
         return await getattr(zetachain, module)(pair)
-    return await getattr(zetachain, module)()
+    await getattr(zetachain, module)()
 
 async def okx_withdraw(zetachain: Zetachain) -> None:
-    if not USE_OKX: logger.error(f'Вывод не возможен! ОКХ не используется'); return
+    if not USE_OKX:
+        logger.error(f'Вывод невозможен! ОКХ выключен в настройках')
+        return
     okx = OKX(zetachain.acc.info)
     if (await zetachain.acc.get_balance('ZETA'))['balance'] < MIN_WALLET_BALANCE:
         amount = random.uniform(*AMOUNT_TO_WITHDRAW)
         await okx.withdraw(zetachain.acc.address, amount, 'ZETA', 'ZetaChain')
-    else: logger.info(f'{zetachain.acc.info} Аккаунт уже имеет более {MIN_WALLET_BALANCE} ZETA')
+    else:
+        logger.info(f'{zetachain.acc.info} Аккаунт уже имеет более {MIN_WALLET_BALANCE} ZETA')
 
 async def get_okx_balance():
-    if not USE_OKX: logger.error(f'ОКХ не используется'); return
+    if not USE_OKX: 
+        logger.error(f'Не удалось получить баланс OKX! ОКХ выключен в настройках')
+        return
     okx = OKX('')
     balance = await okx.get_okx_ccy_balance('ZETA')
     logger.info(f'Баланс OKX: {balance} $ZETA')
