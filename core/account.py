@@ -7,7 +7,7 @@ from web3.exceptions import TransactionNotFound
 from web3.middleware import async_geth_poa_middleware
 
 from settings import GAS_MULTIPLIER, RPC, EXPLORER
-from config import ERC20_ABI, USUAL_TOKENS
+from config import ERC20_ABI, TOKENS
 from .helpers import retry, sleep
 
 Web3Account.enable_unaudited_hdwallet_features()
@@ -49,7 +49,7 @@ class Account:
             await self.send_txn(transaction)
             await sleep(10, 15)
         else:
-            logger.info(f'{self.info} Аппрув уже есть, пропускаю')
+            logger.info(f'{self.info} Аппрув уже есть, пропускаю...')
 
     async def get_tx_data(self, value: int = 0) -> dict:
         return {
@@ -70,7 +70,7 @@ class Account:
         if token_symbol == 'ZETA' or not token_symbol:
             balance_wei = await self.w3.eth.get_balance(self.address)
             return {"balance_wei": balance_wei, "balance": balance_wei/10**18, "symbol": 'ZETA', "decimal": 18}
-        contract_address = USUAL_TOKENS[token_symbol]
+        contract_address = TOKENS[token_symbol]
         contract = self.get_contract(contract_address)
         symbol = await contract.functions.symbol().call()
         decimal = await contract.functions.decimals().call()
@@ -111,6 +111,6 @@ class Account:
         if receiver_address is None:
             receiver_address = self.address
         receiver_address = self.w3.to_checksum_address(receiver_address)
-        logger.info(f"{self.info} Отправляем {value:.5f} ZETA на {receiver_address[:5]}...{receiver_address[-5:]}")
+        logger.info(f"{self.info} Отправляю {value:.5f} ZETA на {receiver_address[:5]}...{receiver_address[-5:]}")
         tx_data = await self.get_tx_data(int(value * 10**18)) | {"to": receiver_address, 'data': '0x'}
         return await self.send_txn(tx_data)
