@@ -14,7 +14,10 @@ GAS_MULTIPLIER: tuple[float, float] = (1, 1.1)
 RETRY_COUNT: int = 5
 
 # Делать действие в любом случае, даже если оно уже выполнено
-DO_ACTION_ANYWAY: bool = False
+DO_ACTION_ANYWAY: bool = True
+
+# Мин, макс время ожидания между аккаунтами
+SLEEP_BETWEEN_ACCS: tuple[int, int] = (10, 15)
 
 # Кастомный маршрут (все модули уже записаны, их можно закомментировать или поменять местами)
 CUSTOM_WAY: list[str] = [
