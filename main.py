@@ -79,8 +79,11 @@ async def main(zetachains: list[Zetachain]) -> None | bool:
             await globals()[module](zetachain)
         else:
             await run_solo_module(module, zetachain)
-        if zetachain != zetachains[-1] and not zetachain.acc.proxy:
-            await wait_for_new_ip()
+        if zetachain != zetachains[-1]:
+            if not zetachain.acc.proxy:
+                await wait_for_new_ip()
+            else:
+                await sleep(*SLEEP_BETWEEN_ACCS)
 
 
 if __name__ == '__main__':
