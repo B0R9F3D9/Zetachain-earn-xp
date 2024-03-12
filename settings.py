@@ -31,6 +31,7 @@ CUSTOM_WAY: list[str] = [
     'izumi_liquidity-ZETA/ETH.ETH', # Добавить iZUMi ликвидность ZETA/ETH.ETH
     'izumi_liquidity-ZETA/BTC.BTC', # Добавить iZUMi ликвидность ZETA/BTC.BTC
     'mint_stzeta', # Минт $stZETA
+    'ultiverse_mint' # Минт нфт бейджа на Ultiverse
     'claim', # Клейм поинтов
     'withdraw', # Вывод на адрес для депозита
 ]
@@ -38,7 +39,7 @@ CUSTOM_WAY: list[str] = [
 # Настройки маршрутов
 MIN_WALLET_BALANCE: float = 0.001 # Минимальный баланс кошелька в $ZETA, если баланс меньше то будет выводить с ОКХ сумму AMOUNT_TO_WITHDRAW
 TRANSFER_AMOUNT: tuple[float, float] = (0.000001, 0.00001) # Мин, Макс сумма перевода самому себе в $ZETA
-IZUMI_SWAP_AMOUNT: tuple[float, float] = (0.0001, 0.001) # Мин, Макс сумма свапа на iZUMi в $ZETA
+IZUMI_SWAP_AMOUNT: tuple[float, float] = (0.001, 0.0019) # Мин, Макс сумма свапа на iZUMi в $ZETA
 EDDY_SWAP_AMOUNT: tuple[float, float] = (5.1, 5.5) # Мин, Макс сумма свапа на Eddy Finance в $USD (минимум 5$)
 STZETA_MINT_AMOUNT: tuple[float, float] = (0.00001, 0.0001) # Мин, Макс сумма минта $stZETA
 AMOUNT_TO_SAVE: tuple[float, float] = (0.02, 0.03) # Мин, Макс сумма для сохранения на кошельке в $ZETA
