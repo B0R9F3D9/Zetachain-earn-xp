@@ -186,10 +186,9 @@ class Zetachain:
 
     @retry
     async def ultiverse_mint(self) -> None:
-        if not DO_ACTION_ANYWAY:
-            if self.tasks['ULTIVERSE_MINT_BADGE']:
-                logger.info(f'{self.acc.info} Кошелёк уже делал минт бейджа на Ultiverse ✅')
-                return
+        if self.tasks['ULTIVERSE_MINT_BADGE']:
+            logger.info(f'{self.acc.info} Кошелёк уже делал минт бейджа на Ultiverse ✅')
+            return
         logger.info(f'{self.acc.info} Делаю минт бейджа на Multiverse...')
         headers = {
             'authority': 'mission.ultiverse.io',
