@@ -1,4 +1,4 @@
-import asyncio, random, aiohttp
+import asyncio, random, aiohttp, time
 from loguru import logger
 from base64 import b64decode
 from hexbytes import HexBytes
@@ -6,7 +6,7 @@ from fake_useragent import UserAgent
 
 from web3 import AsyncWeb3
 from web3.contract.async_contract import AsyncContract
-from eth_account.messages import encode_structured_data
+from eth_account.messages import encode_structured_data, encode_defunct
 
 from .account import Account
 from .helpers import retry, sleep
@@ -28,6 +28,7 @@ class Zetachain:
             'referer': 'https://hub.zetachain.com/',
             'user-agent': UserAgent().random
         }
+        self.tasks: dict = {}
 
     async def get_zeta_price(self) -> float:
         async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -35,23 +36,28 @@ class Zetachain:
                 return float((await resp.json())['USD'])
 
     @retry
-    async def check_complete(self, task_name: str) -> bool:
+    async def check_tasks(self) -> None: # Обязательно перед стартом
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(f'https://xp.cl04.zetachain.com/v1/get-user-has-xp-to-refresh', params={'address': self.acc.address}, proxy=self.acc.proxy) as resp:
-                if resp.status == 400 and 'not verified' in (await resp.text()).lower():
+                if 'not verified' in (await resp.text()).lower():
                     raise Exception(f'{self.acc.info} Кошелёк не зарегистрирован! | Повторная проверка через 20-30 сек')
                 elif resp.status == 429:
                     raise Exception(f'{self.acc.info} Лимит запросов! | Повторная попытка через 20-30 сек')
-                elif resp.status != 200: logger.error(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()}'); return
-                data = (await resp.json())['xpRefreshTrackingByTask'][task_name]
-        return data['hasAlreadyEarned'] is False and data['hasXpToRefresh'] is False
+                elif resp.status != 200:
+                    raise Exception(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()} | Повторная проверка через 20-30 сек')
+                data: dict = (await resp.json())['xpRefreshTrackingByTask']
+        for task in data:
+            completed = data[task]['hasAlreadyEarned'] == True or data[task]['hasXpToRefresh'] == True
+            self.tasks[task] = True if completed else False
     
     @retry
     async def check_enroll(self) -> bool:
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.post(f"https://xp.cl04.zetachain.com/v1/enroll-in-zeta-xp", json={'address': self.acc.address}, proxy=self.acc.proxy) as resp:
-                if resp.status == 429: raise Exception(f'{self.acc.info} Лимит запросов! | Повторная попытка через 20-30 сек')
-                elif resp.status != 200: raise Exception(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()}')
+                if resp.status == 429:
+                    raise Exception(f'{self.acc.info} Лимит запросов! | Повторная попытка через 20-30 сек')
+                elif resp.status != 200:
+                    raise Exception(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()} | Повторная попытка через 20-30 сек')
                 return (await resp.json())['isUserVerified']
         
     @retry
@@ -77,7 +83,7 @@ class Zetachain:
     @retry
     async def transfer(self) -> None:
         if not DO_ACTION_ANYWAY:
-            if not await self.check_complete('SEND_ZETA'):
+            if self.tasks['SEND_ZETA']:
                 logger.info(f'{self.acc.info} Кошелёк уже переводил ZETA ✅')
                 return
         amount = random.uniform(*TRANSFER_AMOUNT)
@@ -86,7 +92,7 @@ class Zetachain:
     @retry
     async def izumi_swap(self, pair: str) -> None:
         if not DO_ACTION_ANYWAY:
-            if not await self.check_complete(f'RECEIVE_{pair.split("/")[1].split(".")[0]}'):
+            if self.tasks[f'RECEIVE_{pair.split("/")[1].split(".")[0]}']:
                 logger.info(f'{self.acc.info} Кошелёк уже свапал {pair} ✅')
                 return
         fee = {'ZETA/BNB.BSC': 10000, 'ZETA/ETH.ETH': 3000, 'ZETA/BTC.BTC': 10000}[pair]
@@ -115,7 +121,7 @@ class Zetachain:
     @retry
     async def izumi_liquidity(self, pair: str) -> None | bool:
         if not DO_ACTION_ANYWAY:
-            if not await self.check_complete('POOL_DEPOSIT_ANY_POOL'):
+            if self.tasks['POOL_DEPOSIT_ANY_POOL']:
                 logger.info(f'{self.acc.info} Кошелёк уже добавлял ликвидность ✅')
                 return False
 
@@ -168,19 +174,74 @@ class Zetachain:
 
     async def eddy_swap(self, pair: str) -> None:
         if not DO_ACTION_ANYWAY:
-            if not await self.check_complete('EDDY_FINANCE_SWAP'):
+            if self.tasks['EDDY_FINANCE_SWAP']:
                 logger.info(f'{self.acc.info} Кошелёк уже делал свап на Eddy Finance ✅')
-                return 
+                return
         token = pair.split('/')[1]
         if (await self.acc.get_balance(token))['balance'] < 0.000001:
             await self._eddy_swap_from_zeta(token) # 1й свап с ZETA на токен
             await sleep(20, 30) # пауза между свапами
+        if (await self.acc.get_balance(token))['balance'] < 0.000001: return
         await self._eddy_swap_to_zeta(token) # 2й свап с токена на ZETA
+
+    @retry
+    async def ultiverse_mint(self) -> None:
+        if not DO_ACTION_ANYWAY:
+            if self.tasks['ULTIVERSE_MINT_BADGE']:
+                logger.info(f'{self.acc.info} Кошелёк уже делал минт бейджа на Ultiverse ✅')
+                return
+        logger.info(f'{self.acc.info} Делаю минт бейджа на Multiverse...')
+        headers = {
+            'authority': 'mission.ultiverse.io',
+            'Accept': '*/*',
+            'Content-Type': 'application/json',
+            'Origin': 'https://mission.ultiverse.io',
+            'Referer': 'https://mission.ultiverse.io/t/ZmluZHBhdGh8MTcwNjg2MDczMTkzMQ==',
+            'User-Agent': UserAgent().random,
+        }
+        async with aiohttp.ClientSession(headers=headers) as session:
+            session.headers['ul-auth-api-key'] = 'bWlzc2lvbl9ydW5uZXJAZFd4MGFYWmxjbk5s'
+            # Получение сигнатуры подписи для авторизации
+            json_data = {'address': self.acc.address, 'chainId': 7000, 'feature': 'assets-wallet-login'}
+            async with session.post('https://account-api.ultiverse.io/api/user/signature', json=json_data, proxy=self.acc.proxy) as resp:
+                data = await resp.json()
+                if resp.status not in [200, 201] or data['success'] != True:
+                    raise Exception(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()} | Повторная попытка через 20-30 сек')
+                msg = (await resp.json())['data']['message']
+            login_signature = self.w3.eth.account.sign_message(encode_defunct(text=msg), private_key=self.acc.private_key).signature.hex()
+            # Получение токена авторизации для сайта
+            json_data = {'address': self.acc.address, 'chainId': 7000, 'signature': str(login_signature)}
+            async with session.post('https://account-api.ultiverse.io/api/wallets/signin', json=json_data, proxy=self.acc.proxy) as resp:
+                data = await resp.json()
+                if resp.status not in [200, 201] or data['success'] != True:
+                    raise Exception(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()} | Повторная попытка через 20-30 сек')
+                access_token = data['data']['access_token']
+        async with aiohttp.ClientSession(headers=headers) as session:
+            # Получение сигнатуры, времени истечения, адреса контракта и айди токена для минта
+            session.headers['Ul-Auth-Token'] = access_token
+            json_data = {'address': self.acc.address, 'eventId': 10} # 10 - айди нфт для минта (Zeta Badge)
+            async with session.post('https://mission.ultiverse.io/api/tickets/mint', json=json_data, proxy=self.acc.proxy) as resp:
+                data = await resp.json()
+                if resp.status not in [200, 201] or data['success'] != True:
+                    raise Exception(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()} | Повторная попытка через 20-30 сек')
+                contract_address: str = data['data']['contract']
+                expiration_time: int = data['data']['expireAt']
+                token_id: int = int(data['data']['tokenId'])
+                mint_signature: str = (await resp.json())['data']['signature']
+        # Минт нфт бейджа
+        tx_data = await self.acc.get_tx_data() | {
+            'to': contract_address,
+            'data': f'0xbfc78b2d00000000000000000000000000000000000000000000000000000000{hex(expiration_time)[2:]}' + \
+                f'00000000000000000000000000000000000000000000000000000000000{hex(token_id)[2:]}000000000000000000000000000000000000000000000000000000000000000a' + \
+                f'00000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000041' + \
+                f'{mint_signature[2:]}00000000000000000000000000000000000000000000000000000000000000',
+        }
+        await self.acc.send_txn(tx_data)
 
     @retry
     async def mint_stzeta(self) -> None:
         if not DO_ACTION_ANYWAY:
-            if not await self.check_complete('ACCUMULATED_FINANCE_DEPOSIT'):
+            if self.tasks['ACCUMULATED_FINANCE_DEPOSIT']:
                 logger.info(f'{self.acc.info} Кошелёк уже делал минт $stZETA ✅')
                 return False
         
@@ -194,7 +255,7 @@ class Zetachain:
         await self.acc.send_txn(txn)
 
     @retry
-    async def sign_message(self) -> str:
+    async def _sign_claim_message(self) -> str:
         data = {
             "types": {
                 "Message": [{"name": "content", "type": "string"}],
@@ -215,7 +276,10 @@ class Zetachain:
     async def claim(self) -> None:
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(f'https://xp.cl04.zetachain.com/v1/get-user-has-xp-to-refresh?address={self.acc.address}', proxy=self.acc.proxy) as resp:
-                if resp.status != 200: logger.error(f'{self.acc.info} Ответ сервера: {resp.status}'); return
+                if resp.status == 429:
+                    raise Exception(f'{self.acc.info} Лимит запросов! | Повторная попытка через 20-30 сек')
+                elif resp.status != 200:
+                    raise Exception(f'{self.acc.info} Код: {resp.status} | Ответ: {await resp.text()} | Повторная проверка через 20-30 сек')
                 data = await resp.json()
             tasks = [[key, value['xp']] for key, value in data["xpRefreshTrackingByTask"].items() if value["hasXpToRefresh"]]
             if not tasks:
@@ -226,7 +290,7 @@ class Zetachain:
             points = 0
             for task in tasks:
                 for _ in range(RETRY_COUNT):
-                    signature = await self.sign_message()
+                    signature = await self._sign_claim_message()
                     json_data = {'address': self.acc.address, 'signedMessage': signature, 'task': task[0]}
                     async with session.post('https://xp.cl04.zetachain.com/v1/xp/claim-task', json=json_data, proxy=self.acc.proxy) as resp:
                         data = await resp.json()
@@ -238,7 +302,6 @@ class Zetachain:
                     else:
                         logger.error(f'{self.acc.info} Не удалось заклеймить поинты для {task[0]}! Код: {resp.status} Ответ: {data}')
                         await asyncio.sleep(random.uniform(10, 15))
-                        continue
         logger.success(f'{self.acc.info} Успешно заклеймил {points} поинтов 🎉')
 
     @retry
