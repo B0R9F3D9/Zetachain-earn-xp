@@ -22,6 +22,7 @@ async def get_pair() -> str:
 async def work(zetachain: Zetachain) -> None:
     if USE_OKX: okx = OKX(zetachain.acc.info); await okx_withdraw(zetachain)
 
+    await zetachain.check_tasks()
     enroll_result = await zetachain.enroll()
     if enroll_result: await sleep(20, 30)
 
@@ -34,6 +35,7 @@ async def work(zetachain: Zetachain) -> None:
     await zetachain.izumi_liquidity(random.choice(pairs))
     await zetachain.eddy_swap(random.choice(pairs))
     await zetachain.mint_stzeta()
+    await zetachain.ultiverse_mint()
 
     await sleep(30, 45)
     await zetachain.claim()
@@ -52,6 +54,7 @@ async def custom_way(zetachain: Zetachain) -> None:
         if result: await sleep(20, 30)
 
 async def run_solo_module(module: str, zetachain: Zetachain, pair: str | None = None) -> bool | None:
+    if zetachain.tasks == {}:await zetachain.check_tasks()
     if 'swap' in module or 'liquidity' in module:
         if not pair: pair = await get_pair()
         return await getattr(zetachain, module)(pair)
