@@ -50,6 +50,7 @@ async def get_module() -> str:
             Choice("➕ Добавить ликвидность на iZUMi", 'izumi_liquidity'),
             Choice("🔄 Свап на Eddy Finance", 'eddy_swap'),
             Choice("🌹 Минт $stZETA", "mint_stzeta"),
+            Choice("🥇 Минт нфт бейджа на Ultiverse", "ultiverse_mint"),
             Choice("🎁 Клейм поинтов", 'claim'),
             Choice("💰 Депозит на адрес для вывода", 'withdraw'),
             Choice("📊 Чекер", 'checker'),
