@@ -65,5 +65,6 @@ TASKS_NAMES = { # Переименованные названия задач д�
     'RECEIVE_ETH': 'ETH',
     'POOL_DEPOSIT_ANY_POOL': 'ПУЛ',
     'ACCUMULATED_FINANCE_DEPOSIT': 'СТЕЙК',
-    'EDDY_FINANCE_SWAP': 'EDDY'
+    'EDDY_FINANCE_SWAP': 'EDDY',
+    'ULTIVERSE_MINT_BADGE': 'БЕЙДЖ'
 }
